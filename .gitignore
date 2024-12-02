@@ -9,4 +9,4 @@
 
 *.csv
 *.dat
-write_trace/
+write_trace/*
