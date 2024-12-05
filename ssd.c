@@ -21,6 +21,7 @@ Hao Luo         2011/01/01        2.0           Change               luohao13568
 #include "ssd.h"
 #include "hash.h"
 #include <unistd.h>
+
 //#include <assert.h>
 
 int index1 = 0, index2 = 0, index3 = 0, RRcount = 0;
@@ -799,30 +800,30 @@ int  main(int argc, char* argv[])
     // add_valid_date(ssd);
     //add_invalid_date(ssd);
     init_ppc_cache(ssd);
-    printf("free_lsb: %ld, free_csb: %ld, free_msb: %ld\n", ssd->free_lsb_count, ssd->free_csb_count, ssd->free_msb_count);
+    // printf("free_lsb: %ld, free_csb: %ld, free_msb: %ld\n", ssd->free_lsb_count, ssd->free_csb_count, ssd->free_msb_count);
     printf("Total request num: %ld.\n", ssd->total_request_num);
-    for (i = 0; i < ssd->parameter->channel_number; i++)
-    {
-        for (j = 0; j < ssd->parameter->die_chip; j++)
-        {
-            for (k = 0; k < ssd->parameter->plane_die; k++)
-            {
-                printf("%d,0,%d,%d:  %5d\n", i, j, k, ssd->channel_head[i].chip_head[0].die_head[j].plane_head[k].free_page);
-            }
-        }
-    }
+    //    for (i = 0; i < ssd->parameter->channel_number; i++)
+    //    {
+    //        for (j = 0; j < ssd->parameter->die_chip; j++)
+    //        {
+    //            for (k = 0; k < ssd->parameter->plane_die; k++)
+    //            {
+    //                printf("%d,0,%d,%d:  %5d\n", i, j, k, ssd->channel_head[i].chip_head[0].die_head[j].plane_head[k].free_page);
+    //            }
+    //        }
+    //    }
     printf("----------------------------------------\n");
-    for (i = 0; i < ssd->parameter->channel_number; i++)
-    {
-        for (int w = 0; w < ssd->parameter->chip_channel[0]; ++w)
-            for (j = 0; j < ssd->parameter->die_chip; j++)
-            {
-                for (k = 0; k < ssd->parameter->plane_die; k++)
-                {
-                    printf("%d,%d,%d,%d:  %5d\n", i, w, j, k, ssd->channel_head[i].chip_head[0].die_head[j].plane_head[k].free_page);
-                }
-            }
-    }
+    //    for (i = 0; i < ssd->parameter->channel_number; i++)
+    //    {
+    //        for (int w = 0; w < ssd->parameter->chip_channel[0]; ++w)
+    //            for (j = 0; j < ssd->parameter->die_chip; j++)
+    //            {
+    //                for (k = 0; k < ssd->parameter->plane_die; k++)
+    //                {
+    //                    printf("%d,%d,%d,%d:  %5d\n", i, w, j, k, ssd->channel_head[i].chip_head[0].die_head[j].plane_head[k].free_page);
+    //                }
+    //            }
+    //    }
     fprintf(ssd->outputfile, "\t\t\t\t\t\t\t\t\tOUTPUT\n");
     fprintf(ssd->outputfile, "****************** TRACE INFO ******************\n");
     //********************************************
@@ -1357,6 +1358,7 @@ struct ssd_info* buffer_management(struct ssd_info *ssd)
     full_page = ~(0xffffffff << ssd->parameter->subpage_page);
 
     new_request = ssd->request_tail;
+
     lsn = new_request->lsn;
     lpn = new_request->lsn / ssd->parameter->subpage_page;
     last_lpn = (new_request->lsn + new_request->size - 1) / ssd->parameter->subpage_page;
@@ -1365,7 +1367,15 @@ struct ssd_info* buffer_management(struct ssd_info *ssd)
     new_request->need_distr_flag = (unsigned int*)malloc(sizeof(unsigned int) * ((last_lpn - first_lpn + 1) * ssd->parameter->subpage_page / 32 + 1));
     alloc_assert(new_request->need_distr_flag, "new_request->need_distr_flag");
     memset(new_request->need_distr_flag, 0, sizeof(unsigned int) * ((last_lpn - first_lpn + 1)*ssd->parameter->subpage_page / 32 + 1));
-
+    //    if (lpn == ssd->stripe.checkLpn )
+    //    {
+    //        printf("This is parity_data!");
+    //    }
+    //    else
+    //    {
+    //        printf("This is common_data!");
+    //    }
+    //判断：sub_req->lpn == ssd->stripe.checkLpn
     if (new_request->operation == READ)
     {
         while (lpn <= last_lpn)
@@ -1429,8 +1439,7 @@ struct ssd_info* buffer_management(struct ssd_info *ssd)
                 else if (flag == 0)
                 {
                     ssd->dram->buffer->read_miss_hit++;//更新缓存读的未命中率--已改
-                    //insert2buffer(ssd, lpn, state, NULL, new_request);
-                    ssd = insert2buffer(ssd, lpn, state, NULL, new_request);
+                    //ssd = insert2buffer(ssd, lpn, state, NULL, new_request);//读未命中，将其放进缓存---读写缓存
                 }
                 need_distb_flag = need_distb_flag & lsn_flag;
 
@@ -3004,11 +3013,30 @@ void move_to_head(struct ssd_info *ssd, struct buffer_group *buffer_node)
     ssd->dram->buffer->buffer_head = buffer_node;
 
 }
-
-struct buffer_group* get_last(struct ssd_info *ssd)
+void move_to_phead(struct ssd_info *ssd, struct buffer_group *buffer_node)//这个函数专用于parity链表
 {
-    struct buffer_group *buffer_node = ssd->dram->buffer->buffer_tail;
-    ssd->dram->buffer->buffer_tail = buffer_node->LRU_link_pre;
+    if (ssd->dram->parity_data_buffer->buffer_tail == buffer_node)
+    {
+        ssd->dram->parity_data_buffer->buffer_tail = buffer_node->LRU_link_pre;
+        buffer_node->LRU_link_pre->LRU_link_next = NULL;
+    }
+    else
+    {
+        buffer_node->LRU_link_pre->LRU_link_next = buffer_node->LRU_link_next;
+        buffer_node->LRU_link_next->LRU_link_pre = buffer_node->LRU_link_pre;
+    }
+
+    buffer_node->LRU_link_next = ssd->dram->parity_data_buffer->buffer_head;
+    ssd->dram->parity_data_buffer->buffer_head->LRU_link_pre = buffer_node;
+    buffer_node->LRU_link_pre = NULL;
+    ssd->dram->parity_data_buffer->buffer_head = buffer_node;
+
+}
+
+struct buffer_group* get_last(struct ssd_info *ssd)//先看是不是仅在ppc_cache中使用
+{
+    struct buffer_group *buffer_node = ssd->dram->parity_data_buffer->buffer_tail;
+    ssd->dram->parity_data_buffer->buffer_tail = buffer_node->LRU_link_pre;
     buffer_node->LRU_link_pre->LRU_link_next = NULL;
 
     return buffer_node;
@@ -3314,14 +3342,14 @@ void gc_eject(struct ssd_info* ssd, unsigned long long raidid)
     }
 }
 
-void cache_fail(struct ssd_info* ssd, struct buffer_group *buffer_node)
+void cache_fail(struct ssd_info* ssd, struct buffer_group *buffer_node)//已改
 {
-    int free_sector = ssd->dram->buffer->max_buffer_sector - ssd->dram->buffer->buffer_sector_count;
+    int free_sector = ssd->dram->parity_data_buffer->max_buffer_sector - ssd->dram->parity_data_buffer->buffer_sector_count;
     if (free_sector != 0)
     {
         return;
     }
-    struct buffer_group *tail = ssd->dram->buffer->buffer_tail;
+    struct buffer_group *tail = ssd->dram->parity_data_buffer->buffer_tail;
     for (int i = 0; i < ssd->stripe.all - 1; ++i)
     {
         int j = 0;
@@ -3433,25 +3461,27 @@ void ppc_cache(struct ssd_info* ssd, int lpn, unsigned int state, struct request
     unsigned long long sector_count = size(mask), free_sector;
     key.group = lpn;
     ssd->cacheCount++;
+
     if (lpn == -1)
     {
         printf(" raid %d\n", lpn);
         abort();
     }
-    if ((buffer_node = (struct buffer_group*)hash_find(ssd->dram->buffer, (HASH_NODE*)&key)) != NULL)
+    if ((buffer_node = (struct buffer_group*)hash_find(ssd->dram->parity_data_buffer, (HASH_NODE*)&key)) != NULL)//已改--buffer->parity_data_buffer
     {
-        if (ssd->dram->buffer->buffer_head != buffer_node)
+        if (ssd->dram->parity_data_buffer->buffer_head != buffer_node)
         {
-            movtiavate(ssd, buffer_node);
-            move_to_head(ssd, buffer_node);
+            //movtiavate(ssd, buffer_node);--已改-删除
+            move_to_phead(ssd, buffer_node);
         }
+
         buffer_node->stored |= state;
         ssd->cacheHit++;
     }
     else
     {
         unsigned char flag = 0;
-        free_sector = ssd->dram->buffer->max_buffer_sector - ssd->dram->buffer->buffer_sector_count;
+        free_sector = ssd->dram->parity_data_buffer->max_buffer_sector - ssd->dram->parity_data_buffer->buffer_sector_count;
 
         if (free_sector >= sector_count)
         {
@@ -3490,9 +3520,9 @@ void ppc_cache(struct ssd_info* ssd, int lpn, unsigned int state, struct request
             // printf("%d\n", calculate);
             ssd->changeCount[calculate - 1]++;
 
-            ssd->dram->buffer->buffer_sector_count = ssd->dram->buffer->buffer_sector_count - (size(mask));
-            hash_del(ssd->dram->buffer, (HASH_NODE*)buffer_node);
-            hash_node_free(ssd->dram->buffer, (HASH_NODE*) buffer_node);
+            ssd->dram->parity_data_buffer->buffer_sector_count = ssd->dram->parity_data_buffer->buffer_sector_count - (size(mask));
+            hash_del(ssd->dram->parity_data_buffer, (HASH_NODE*)buffer_node);
+            hash_node_free(ssd->dram->parity_data_buffer, (HASH_NODE*) buffer_node);
 
             // creat_update_sub(ssd, sub);
 
@@ -3501,6 +3531,7 @@ void ppc_cache(struct ssd_info* ssd, int lpn, unsigned int state, struct request
             {
                 printf("eject,2,,%d\n", sub_req_lpn);
             }
+
         }
         else
         {
@@ -3529,20 +3560,20 @@ void ppc_cache(struct ssd_info* ssd, int lpn, unsigned int state, struct request
         buffer_node->dirty_clean = state;
         buffer_node->createTime = ssd->cacheCount;
         buffer_node->LRU_link_pre = NULL;
-        buffer_node->LRU_link_next = ssd->dram->buffer->buffer_head;
-        if (ssd->dram->buffer->buffer_head != NULL)
+        buffer_node->LRU_link_next = ssd->dram->parity_data_buffer->buffer_head;
+        if (ssd->dram->parity_data_buffer->buffer_head != NULL)
         {
-            ssd->dram->buffer->buffer_head->LRU_link_pre = buffer_node;
+            ssd->dram->parity_data_buffer->buffer_head->LRU_link_pre = buffer_node;
         }
         else
         {
-            ssd->dram->buffer->buffer_tail = buffer_node;
+            ssd->dram->parity_data_buffer->buffer_tail = buffer_node;
         }
-        ssd->dram->buffer->buffer_head = buffer_node;
+        ssd->dram->parity_data_buffer->buffer_head = buffer_node;
         buffer_node->LRU_link_pre = NULL;
         //avlTreeAdd(ssd->dram->buffer, (TREE_NODE *) new_node);
-        hash_add(ssd->dram->buffer, (HASH_NODE*) buffer_node);
-        ssd->dram->buffer->buffer_sector_count += sector_count;
+        hash_add(ssd->dram->parity_data_buffer, (HASH_NODE*) buffer_node);
+        ssd->dram->parity_data_buffer->buffer_sector_count += sector_count;//更新缓存中当前占用的扇区数量---sector_count:新插入的缓存节点所占用的扇区数量
 
         if (req && ssd->trip2Page[buffer_node->group].location)
         {
@@ -3582,6 +3613,7 @@ void ppc_cache(struct ssd_info* ssd, int lpn, unsigned int state, struct request
         free(ssd->trip2Page[buffer_node->group].location);
         ssd->trip2Page[buffer_node->group].location = NULL;
     }
+
 }
 
 void creat_sub_write_request_for_raid(struct ssd_info* ssd, int lpn, unsigned int state, struct request* req, unsigned int mask)

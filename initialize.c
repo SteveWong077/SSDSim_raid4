@@ -121,6 +121,29 @@ struct ssd_info* initiation(struct ssd_info *ssd)
     //scanf("%s",ssd->parameterfilename);
     //scanf("%s",ssd->tracefilename);
     strncpy(ssd->outputfilename, "ex.out", 7);
+
+
+    //    strcat(tracename, "x");
+    //    strcat(tracename, ssd->run_trace_times);
+    //    char buffer_th[20]; // 用于存储 float 转换后的字符串
+    //    sprintf(buffer_th, "%.3f", ssd->parameter->gc_threshold); // 将 float 转为字符串，保留两位小数
+    //    strcat(tracename, buffer_th); // 拼接 tracename 和 buffer
+    //    //    printf("%s", tracename);
+    //    //    printf("11111\n");
+    //    strncpy(ssd->statisticfilename, tracename, 30);
+    //    strcat(ssd->statisticfilename, ".dat");
+    //    char full_path[256] = "./result/";
+    //    strcat(full_path, ssd->statisticfilename);
+
+    // 将完整路径复制给 ssd->statisticfilename
+    // strcpy(ssd->statisticfilename, full_path);
+
+
+
+
+
+
+
     strncpy(ssd->statisticfilename, "statistic10.dat", 16);
     strncpy(ssd->statisticfilename2, "statistic2.dat", 15);
 
@@ -387,17 +410,17 @@ struct dram_info* initialize_dram(struct ssd_info * ssd)
     dram->dram_capacity = ssd->parameter->dram_capacity;
     //dram->buffer = (tAVLTree *)avlTreeCreate((void*)keyCompareFunc , (void *)freeFunc);
     // 分配1/4和3/4的容量
-    //    unsigned int hot_data_capacity = dram->dram_capacity / 4;
-    //    unsigned int parity_data_capacity  = (dram->dram_capacity * 3) / 4;
+    unsigned int hot_data_capacity = dram->dram_capacity / 4;
+    unsigned int parity_data_capacity  = (dram->dram_capacity * 3) / 4;
 
     //    //创建两个缓冲区
     //    dram->hot_data_buffer = (tHash*)hash_create((void*)freeFunc);//已改
     //    dram->hot_data_buffer->max_buffer_sector = hot_data_capacity / SECTOR;
-    dram->buffer = (tHash*)hash_create((void*)freeFunc);
-    dram->buffer->max_buffer_sector = dram->dram_capacity / SECTOR; //512
+    dram->buffer = (tHash*)hash_create((void*)freeFunc); //这里不动，定义为数据缓存
+    dram->buffer->max_buffer_sector = hot_data_capacity / SECTOR; //512
 
-    //dram->parity_data_buffer = (tHash*)hash_create((void*)freeFunc);
-    //dram->parity_data_buffer->max_buffer_sector  = parity_data_capacity / SECTOR;
+    dram->parity_data_buffer = (tHash*)hash_create((void*)freeFunc);
+    dram->parity_data_buffer->max_buffer_sector  = parity_data_capacity / SECTOR;
     dram->map = (struct map_info*)malloc(sizeof(struct map_info));//初始化映射表
     alloc_assert(dram->map, "dram->map");
     memset(dram->map, 0, sizeof(struct map_info));

@@ -683,7 +683,7 @@ struct dram_info
 
     struct buffer_info_Hash* buffer;
     //struct buffer_info_Hash* hot_data_buffer;
-    //struct buffer_info_Hash* parity_data_buffer;
+    struct buffer_info_Hash* parity_data_buffer;
 };
 
 

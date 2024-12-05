@@ -5,6 +5,7 @@
 # 32MB TEST
 #dram capacity = 0
 dram capacity = 134217728   #128MB
+#dram capacity = 536870912
 
 chip number[0] = 2;
 chip number[1] = 2;
@@ -39,13 +40,13 @@ chip number[29] = 4;
 chip number[30] = 4;
 chip number[31] = 4;
 channel number = 4;   #the number of channel
-chip number = 8;      #宸叉敼
-die number = 1;      
+chip number = 8;      #总的chip数量:2*4
+die number = 1;
 plane number = 1;
 block number = 512;
-page number = 384;
+page number = 384;     #384
 subpage page = 16;
-page capacity = 8192;
+page capacity = 8192; #8KB
 subpage capacity = 512;
 t_PROG = 700000;             #the unit is ns  Program 2000000
 t_PROG_L = 500000;           #program on LSB
